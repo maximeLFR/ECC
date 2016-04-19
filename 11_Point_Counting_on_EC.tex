@@ -1,0 +1,14 @@
+\chapter{Comptage de points}
+Soit $E$ une courbe elliptique définie sur \GF{q} avec $q = p^r$
+
+\begin{description}
+    \item[Subfield Curves]\hfill \\
+    Soit $\#E(\GF{q}) = q + 1 - a$. \'Ecrivons $X^2 -aX + q = (X - \alpha)(X - \beta)$. Alors
+    $$\#E(\GF{q^n}) = q^n + 1 - (\alpha^n + \beta^n)$$
+    pour tout $n \geq 1$.
+    \item[Symbole de Legendre]\hfill \\
+    Pour $x_0 \in \GF{q}$ fixé, le nombre de points de $E(\GF{q})$ d'abscisse $x_0$ dépend si $f(x_0)$ est un carré dans \GF{q} ou non.
+    \item[Ordre des points]\hfill \\
+    Par le théorème de Hasse, le cardinal des points \GF{q}-rationnels se situe dans un intervalle de longueur $4\sqrt(p) + 1$. La connaissance d'un point de grand ordre permet donc de diminuer l'espace des possibles. L'algorithme BSGS permet de calculer l'ordre du point
+    \item[Algorithme de Shoof]\hfill \\
+\end{description}

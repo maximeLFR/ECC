@@ -1,0 +1,87 @@
+\chapter{Forme d'Edwards}
+\section{Edwards et Weierstrass}
+\paragraph{Equations}
+Courbe définie sur un corps non binaire.
+\begin{itemize}
+    \item Edwards 2007. $x^2 + y^2 = c^2(1 + dx^2y^2)$
+    \item DJB et al. $x^2 + y^2 = c^2(1 + dx^2y^2)$ isomorphe à $x^2 + y^2 = 1 + dx^2y^2$
+    \item DJB et al. twisted Edwards curves, $ax^2 + y^2 = 1 + dx^2y^2$
+\end{itemize}
+
+
+\paragraph{Edwards et Weierstrass}
+Soit \field{} un corps dans lequel $2 \neq 0$. Alors $E[4] \simeq (\Zn{4})^2$ ie : pour toute courbe elliptique définie sur \field{}, il existe une extension dans laquelle la courbe possède un point d'ordre $4$.
+
+Soit $E$ une courbe elliptique définie sur \field{} possèdant un point d'ordre $4$. Alors :
+\begin{itemize}
+    \item Le twist quadratique de $E$ est birationnelement équivalent sur \field{} à une courbe d'Edwards.
+    \item Si en plus $E$ possède un unique point d'ordre $2$, alors la courbe d'Edwards associée est telle que $d$ est un non carré (formule complète).
+    \item Si en plus \field{} est un corps fini alors le twist peut être enlevé.
+\end{itemize}
+Environ $1/4$ des classes d'isomorphismes de courbes elliptiques définies sur un corps fini peuvent être transformées en courbe d'Edwards sur le même corps de base. (peut-être davantage pour les tordues d'Edwards).
+
+\paragraph{Edwards et Montgomery}
+Soit \field{} un corps non binaire. L'ensemble des courbes de Montgomery sur \field{} est équivalent à l'ensemble des courbes tordues d'Edwards sur \field{}. Il existe toujours une équivalence birationnelle et parfois directement sur une courbe d'Edwards et non sur une tordue. 
+
+\paragraph{Montgomery et Weierstrass}
+
+
+\paragraph{Curve25519}
+Courbe proposée en 2006 par DJB, soit avant l'avènement des courbes d'Edwards. Courbe de Montgomery rigide (sans choix arbitraire) utilisée pour battre un record de vitesse pour un ECDH. 
+$p^{255} - 19$, $y^2 = x^3 + 486662x^2 + x$. La Curve25519 peut s'écrire comme une courbe d'Edwards $x^2 + y^2 = 1 + (121665/121666)x^2y^2$, elle-même isomorphe à la tordue d'Edwards $121666x^2 + y^2 = 1 + 121665x^2y^2$. Ici deux multiplications par $a$ et $d$ sont plus efficaces qu'une seule grosse multiplication par $d = 121665/121666$. Remarquer que les formules d'additions associées à ED25519 sont complètes puisque $d$ est un non carré dans \GF{2^{255}-19}. 
+
+Ce phénomène n'est pas un accident puisqu'une courbe de Montgomery est normalement choisie tel que $(A+2)/4$ soit un petit entier : puisque l'arithmétique en X-only sur ces courbes impliquent une multiplication par cet entier. La courbe d'Edwards correspondantes a $d/a = (A - 2)/(A + 2)$ une fraction de petit entiers, ce qui donne une arithmétique plus efficace sur les tordues d'Edwards. 
+
+Propriétés de la courbe Curve25519
+\begin{itemize}
+    \item Courbe de Montgomery $y^2 = x^3 + 486662x^2 + x$ sur \GF{$p$} avec $p = 2^{255} - 19$ (nombre de Crandall).
+    \item $|(A-2)/4|$ est le plus petit possible et $A^2 - 4$ n'est pas un carré dans \GF{p}, ainsi la courbe possède un unique point d'ordre $2$.
+    \item Curve25519 est birationnellement équivalente à Ed25519 : $x^2 + y^2 = 1 + (121665/121666)x^2y^2$ elle même isomorphe à $121666x^2 + y^2 = 1 + 121665x^2y^2$. 
+    \item $\#E(\GF{p}) = 8r$ et $\#\tilde{E}(\GF{p}) = 4(r+1)$. 
+    \item $\xi = 2$  est un non résidu quadratique modulo $p$, il peut donc être utilisé pour définir le twist quadratique de Curve25519.
+    \item $p \equiv 5 \pmod 8$, ainsi les racines carrées peuvent se faire via la méthode d'Atkin.
+    \item C'est une courbe Elligator de type 2.
+\end{itemize}
+
+\begin{itemize}
+    \item Résolution des singularitées
+\end{itemize}
+
+
+\section{Loi d'addition d'Edwards}
+The Twisted Edwards Addition Law. Soit $P_i = (x_i, y_i)$ sur une courbe tordue d'Edwards $E_{a, d} : ax^2 + y^2 = 1 + dx^2y^2$. La somme est définie comme : \\
+$(x_1, y_1) + (x_2, y_2) = (\left \frac{}{}, \frac{}{} \right )$
+\begin{itemize}
+    \item $e = (0, 1)$ est l'élément neutre. $-P = (-x, y)$.
+    \item Le point $(0, -1)$ est d'ordre $2$. Les points $(1, 0)$ et $(-1, 0)$ sont d'ordres $4$. Le cofacteur d'une courbe d'Edwards est donc un multiple de $4$.
+    \item Cette loi est fortement unifiée. Elle peut être utilisée pour le doublement d'un point. Mais il existe quelques exceptions.
+\end{itemize}
+
+\begin{theorem}
+L'addition définie plus haut est bien une loi de composition interne ie : quand la sortie est définie alors le point obtenu est sur la courbe.
+\end{theorem}
+
+\begin{theorem}
+Si $E$ possède un unique point d'ordre $2$ alors $d$ est un non carré et $a$ est un carré dans \field{}, et la loi est alors complète.
+\end{theoreme}
+
+\section{Arithmétique efficace}
+\begin{description}
+\item[Coordonées projectives] \hline \\
+$(x, y) = (X/Z, Y/Z)$ et $[X : Y : Z] = [\lambda X : \lambda Y : \lambdaw Z], \forall \lambda \in \R{}^{*}$.
+\item[Coordonées inversées] \hline \\
+$(x, y) = (Z/X, Y/X)$  et $[X : Y : Z] = [\lambda X : \lambda Y : \lambdaw Z], \forall \lambda \in \R{}^{*}$. Ce système de coordonnées permet de sauver une multiplication par addition tout en conservant le même nombre d'opération que le système de coordonnées projectives pour le doublement et le triplement. Néanmoins les formules ne sont plus complètes, il existe quatre points spéciaux : le neutre et les points d'ordres 2 et 4.
+\item[Coordonnées étendues du Twist d'Edwards] \hline \\
+Ajoute une coordonnée auxilaire $t = xy$. Pour le changement de coordonnées on considère l'application $(x, y, t) \to [x : y : t : 1]$. On a $(x, y, t) = [X/Z : Y/Z : T/Z]$ et $[X : Y : Z] = [\lambda X : \lambda Y : \lambdaw Z], \forall \lambda \in \R{}^{*}$ avec $T = XY/Z$. 
+Choisir le coefficient $a$ de la courbe égal à -1 permet d'accélérer les additions dans ce système de coordonnées. Par exemple par rapport aux coordonnées inversées et en prenant $a=-1$, on sauve $1M + 1S + 2D$. Cependant le doublement requiert une multiplication de plus que pour les coordonnées inversées. En pratique on utilisera les coordonnées étendues avec $a=-1$ pour l'addition et les coordonnées projectives \footnote{On pourrait aussi utiliser les coordonnées inversées ... la seule différence est qu'elles ne sont pas complètes.} pour le doublement. Ce système de coordonnée est particulièrement intéressant dans un environnement parallèle.
+\end{description}
+
+\begin{itemize}
+    \item En pratique, on utilise une courbe tordue d'Edwards avec $a=-1$. On utilise les coordonnées étendues pour l'addition et les coordonnées projectives pour le doublement. Lorsque une même série d'opération est effectuée, on peut essayer de les combiner. Par exemple avec l'algorithme de Montgomery, on combine une addition et un doublement. 
+    \item Pour certaine formule d'addition, on peut incorporer la multiplication par $d$ dans les points précalculés.
+    \item Edwards, Twisted Edwards ou Montgomery ? Dépend des caractéristiques de la multiplication scalaire. Si l'on fait une simple SM à base variable alors les courbes de Montgomery sont plus intéressantes (ECDH). Le Montgomery Ladder n'est pas bien adapté aux multiexponentiation et aux bases fixes. 
+\end{itemize}
+
+
+\section{Edwards sur un corps binaire}
+Doublement efficace mais l'addition est beaucoup trop lente. Si l'on souhaite utiliser les formes d'Edwards binaire, il convient de trouver un moyen de se passer de l'addition, comme les courbes de Koblitz se passent du doublement au profit du Frobenius. Les formes d'Edwards binaires peuvent tout de même s'avérer intéressante via l'échelle de Montgomery car elles présentent une arithmétique en X-only efficace. A voir.

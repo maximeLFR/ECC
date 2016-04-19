@@ -1,0 +1,180 @@
+\chapter{Multiplication Scalaire}
+Soit $x$ un élément d'un groupe $(G, \times)$ et $n$ un entier relatif, on appelle \emph{exponentiation discrète} \footnote{Le terme \emph{discret} vient du fait que $n$ est un entier relatif.} le calcul de l'élément $x^n$. On se limite uniquement le cas où $n$ est positif puisque $x^n = (x^{-1})^{-n}$. Lorsque $G = \Zn{n}$, on parle alors d'\emph{exponentiation modulaire}.
+
+L'exponentiation est une opération fondamentale en cryptographie. Il est capital d'être en mesure de la calculer efficacement. L'exponentiation est à la base de nombreux cryptosystèmes et est souvent le calcul nécessitant le plus de temps. Sans volonté d'exhaustivité, citons quelques algorithmes où l'opération centrale est l'exponentiation : RSA, cryptosystème basé sur le logarithme discret, test de primalité, algorithme de factorisation \ldots
+
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{c||c}
+Notation multiplicative & Notation Additive \\
+\hline \hline
+Exponentiation discrète & Multiplication scalaire \\
+$x^n$ & $[k]P$ \\
+$n$ : l'exposant & $k$ : le scalaire \\
+$x$ : point de base & $P$ : point de base \\
+%\multicolumn{2}{c}{$x$, $P$ : point de base} \\
+multiplication (M), carré (S) & addition (A), doublement (D) \\
+\end{tabular}
+\caption{Récapitulatif du vocabulaire en fonction du contexte}
+\end{center}
+\end{table}
+
+La méthode naïve demande $n-1$ multiplications ce qui est totalement inenvisageable en pratique pour les tailles de clés considérées\footnote{Complexité exponentielle en la taille de l'exposant.}. Il est possible de faire beaucoup mieux, sans grande difficulté. Il n'y a pas une méthode supérieure à toutes les autres, celle a privilégie dépend des caractéristiques du groupe et du contexte : 
+\begin{itemize}[label=--]
+    \item Le point de base est-il fixé ? ie : doit-on calculer $x^{n_1}, x^{n_2}, \ldots$.
+    \item L'exposant est-il fixé ? ie : doit-on calculer $x_1^{n}, x_2^{n} \ldots$.
+    \item Peut-on calculer efficacement l'inverse d'un élément ?
+    \item Est-ce une multi-exponentiation ?
+    \item Faut-il se prémunir face aux attaques simples par canaux auxiliaires ?
+\end{itemize}   
+
+Remarquer que la ECC possède une couche inférieure supplémentaire par rapport à RSA. On peut évaluer un algorithme de SM en comptant le nombre d'addition et de doublement ou de manière plus fine en comptant le nombre d'opérations nécessaires dans le corps de base.
+Tout au long de ce chapitre, la décomposition d'un entier $n$ en base $2$ sera donnée par : \\ $n = \sum_{i = 0}^{l-1} n_i 2^i, \text{ avec } n_i \in \{0, 1\}$. $n = (n_{l-1}, \ldots, n_1, n_0)_2$.
+
+Une multiplication scalaire n'est rien d'autre qu'une succession de doublements et d'addition qui sont eux mêmes une succession d'opérations dans le corps de base. L'emploi d'un système de coordonnées homogènes permet d'éviter de calculer des inversions. Finalement une multiplication scalaire demande seulement une inversion pour la conversion finale en affine. Mais elle représente environ $7\%$ du temps total d'une ECSM. \todo{Pour la Curve25519, citer article : constant time modular inversion}.
+
+\section{Méthodes génériques}
+\subsection{Méthodes binaires}
+\begin{description}
+    \item[Right-to-Left] \hfill \\
+    Basé sur l'égalité : $x^{\sum_{i = 0}^{l-1} n_i 2^i} = \prod_{i = 0}^{l-1} x^{n_i 2^i}$. L'idée consiste à parcourir les bits de $n$ de la droite vers la gauche. On calcul successivement les puissances de la forme $x^{2^i}$ par un carré et si le bit traité vaut $1$ alors on le multiplie à notre résultat intermédiaire.
+    \item[Left-to-Right] \hfill \\
+    Basé sur l'observation que la mise au carré consiste à multiplier par $2$ l'exposant ce qui correspond à un décalage d'un pas vers la gauche de $n$. L'idée consiste donc à parcourir les bits de la gauche vers la droite, de mettre au carré notre résultat intermédiaire à chaque itération et de multiplier par $x$ si le bit traité vaut $1$.
+    Avantage : une des opérandes de la multiplication est fixée durant tout l'algorithme. Il est égal au point de base. Cette méthode est similaire à l'évaluation du polynôme par la règle de Hörner.
+\end{description}
+
+Dans un cadre multiplicatif, on parle de \emph{square and multiply} et lorsque la loi est additive on parle de \emph{double and add}. Quelque soit la variante adoptée, on effectue un doublement enchaîné d'une addition seulement si le bit traité vaut un. Ainsi le nombre de doublement est égal à longueur de la chaîne $n$ et le nombre d'addition dépend du poids de Hamming de $n$. Ces algorithmes requièrent $log(n)$ doublements et $log(n)/2$ additions en moyennes. 
+
+Ces deux variantes ont un coût identique en terme d'opération sur les points de la courbe (addition ou doublement). Par contre en terme d'opération élémentaire dans le corps de base, ces deux algorithmes n'ont pas le même coût. La variante left-to-right est à privilégier.
+
+On peut appliquer les opérations composées $[2]P + Q$ lorsque le bit vaut un ou utiliser plusieurs systèmes de coordonnées : jacobiennes modifiées pour les doublements intermédiaires, JM vers J pour les doublements terminaux et addition mixte (affine pour les points précalculés donc).
+
+Notez qu'en cryptographie, on effectue des multiplications en multiprécision. Un élément de $1024$ bits correspond à $16$ mots de $64$ bits. Pour la ECSM on privilégiera les meilleurs formules de doublement à addition égale.
+
+Les algorithmes ci-dessous ont pour but de diminuer le nombre de d'addition en introduisant une étape de précalcul.
+
+
+\subsection{W-ary method}
+Cet algorithme est une généralisation de la méthode précédente. L'idée consiste à décomposer l'exposant $n$ en base $2^k$ et à précalculer les éléments $x^3, x^5, \ldots, x^{2^k - 1}$. On traite ainsi les bits de l'exposant toujours de la gauche vers la droite mais par bloc de $k$ bits. 
+
+\emph{Taille de la fenêtre ?} Le choix de la taille de la fenêtre $k$ n'est pas arbitraire. Remarquer que le paramètre $k$ est indépendant du nombre de doublement. Augmenter le paramètre $k$ permet de diminuer le nombre d'addition durant la phase de calcul mais augmente en contrepartie le nombre d'addition dans la phase de précalcul (il y a plus de points à précalculer). Ainsi il existe un seuil à partir duquel augmenter $k$ n'est plus intéressant.
+
+Tout d'abord, remarquons que quelque soit la taille de la fenêtre le nombre de carrés est le même et vaut $\log(n)$. Notons $m(n, k)$ le nombre de multiplications dans le calcul de $x^n$ à $k$ pas (soit les précalculs et les multiplications dans l'exponentiation). $k^* = \argmin{}_k (m(k+1) \geq m(k)$.
+
+\todo{Mettre tableau}
+
+\subsection{Algorithme à fenêtre glissante}
+Cet algorithme est une généralisation de la méthode précédente. On traite toujours les bits de l'exposant par bloc de $k$ qu'on appelle \emph{fenêtre}. Seulement ici entre ces fenêtres, on passe les chaînes de zéros consécutives par autant de carré qu'il est nécessaire. L'étape de précalcul s'en trouve réduite puisque seul les multiples impaires nécessite d'être précalculé.
+
+Il existe une petite généralisation appelée méthode à fenêtre fractionnée \footnote{Fractionnal Window.}. Dans cette version on peut définir de manière exacte le nombre de points que l'on souhaite précalculer. Le bénéfice de la méthode fractionnée dépend de la distance entre le plus grand multiple à précalculer et une puissance de $2$.
+
+Cet algorithme est plus régulier qu'un simple square-and-multiply.
+
+Finalement on a le choix entre un right-to-left ou un left-to-right (avec ou sans précalcul).
+
+\section{Méthodes non génériques}
+\subsection{Recodage du scalaire}
+Lorsque le calcul de l'inversion peut être effectué rapidement dans le groupe $G$ \footnote{C'est notamment le cas pour les courbes elliptiques.}, alors cette méthode est particulièrement intéressante. Par exemple dans le cas extrême, le calcul de $x^{2^k - 1}$ \footnote{L'exposant est une chaîne de $k$ bits fixé à 1.} requiert $k-1$ carrés et $k-1$ multiplications. Alors qu'en autorisant la multiplication par $x^{-1}$\footnote{c'est à dire la division.}, on pourrait se limiter à $k$ carrés et $1$ multiplications. Le recodage d'exposant vise à diminuer le nombre d'addition, le nombre de doublement quant à lui reste constant. 
+
+\begin{definition}
+Une représentation signée d'un entier $n$ en base $b$ est donnée par 
+\begin{equation*}
+n = \sum_{i = 0}^{l - 1} n_i b^i \ avec\ |n_i| < b
+\end{equation*}
+Une représentation signée en base $2$ est parfois appelée représentation ternaire. Une représentation signée est dite \emph{forme non adjacente} NAF si $n_in_{i+1} = 0$ pour tout $i \geq 0$. 
+\end{definition}
+
+
+Une fois que l'on a recodé l'exposant, la multiplication scalaire s'effectue en appliquant une méthode générique. On autorise l'addition avec l'opposé d'un point. Il est aussi possible d'intégrer le recodage de l'exposant dans l'algorithme d'ECSM : on the fly. On peut le faire de manière naturelle avec un right-to-left \footnote{puisque les bits du scalaire sont aussi calculés de droite à gauche.}. Joye et Yen on proposé une méthode pour le left-to-right.
+
+La représentation ternaire d'un entier n'est pas unique. La forme non adjacente possède des propriétés intéressantes. 
+\begin{itemize}[label=--]
+    \item La forme non adjacente d'un entier est unique.
+    \item Parmi les représentations ternaires, la densité de la représentation d'un entier sous NAF est minimale et elle vaut en moyenne $1/3$. La densité correspond au nombre de bits non nul. Le NAF n'est pas l'unique façon d'obtenir une représentation ternaire possédant une densité minimale.
+    \item En combinant un recodage de l'exposant en NAF avec un right-to-left, on remarque alors qu'il n'est plus nécessaire de précalculer le NAF. Joye a proposé une méthode permettant de faire un left-to-right sans avoir besoin de précalculer le NAF.
+    \item Le NAF d'un entier peut-être plus long que sa représentation binaire mais seulement d'un bit. Il n'y a donc pas de phénomène d'expansion.
+\end{itemize}
+
+Construction du NAF. Le calcul du NAF repose sur le même principe que l'écriture d'un entier en base $b$. Les bits sont calculés de la droite vers la gauche. Si l'entier est pair, le bit vaut 0 et on continue avec $n/2$. Si il est impair, alors $n = 2q_1 + 1 = 2q_{-1} - 1$. Afin de respecter la propriété de non adjacence, on sélectionne la valeur du bit ($+1$ ou $-1$) tel que le bit suivant soit égal à $0$ ie : $q_i$ est pair. Les quotients étant liés par la relation $q_1 + 1 = q_{-1}$, ils sont de parités différentes. De plus on a $n \equiv 2n_1 + n_0 \pmod 4$ (en particulier $n_1 = q_1$). Ainsi la valeur de $n$ modulo $4$, détermine le choix du bit. Au final, $r \leftarrow 2 - (n \pmod 4)$ nous donne la valeur du bit et on enchaîne avec $(n - r)/2$. 
+
+Citation de l'article de Solinas sur les courbes de Koblitz : Just as every positive integer has a unique binary expansion, it also has a unique NAF. Moreover, NAF$(n)$ has the fewest nonzero coefficients of any signed binary expansion of n. There are several ways to construct the NAF of n from its binary expansion. The idea is to divide repeatedly by 2. Recall that one can derive the binary expansion of an integer by dividing by 2, storing off the remainder (0 or 1), and repeating the processwith the quotient. To derive a NAF, one allows remainders of 0 or $\pm 1$. If the remainder is to be $\pm 1$, one chooses whichever makes the quotient even.
+
+
+W-NAF. Cf page 120 Guide to elliptic curve cryptography. Le w-NAF permet de réduire le nombre d'addition à $1/(w+1)$. Le w-NAF est toujours couplé implicitement à un double-and-add. Cela ressemble à faire un sliding window de taille w couplé d'un NAF. Mais le w-NAF est à privilégié.
+
+Il existe une amélioration appelée méthode à fenêtre fractionnée signée \footnote{signed fractional window method} qui permet de précalculer seulement une partie des points à précalculer.
+
+Pour ECC, les points précalculés sont représentés en coordonnées affines ou jacobiennes chudnovsky. Il est possible de précalculer ces points en coordonnée affine avec une seule inversion via l'astuce de Montgomery. Inverser $n$ points avec un seul pgcd binaire étendu (au lieu de $n$) et $3n$ multiplications.
+
+Attention le recodage du scalaire ne doit laisser fuir de l'information par side channel.
+
+\subsection{Multi-exponentiation}
+Utilisé notamment dans la vérification d'ECDSA et la méthode GLV. On parle de multiplication scalaire à double base. 
+\begin{itemize}[label=--]
+    \item Multi-exponentiation simultanée. Appelé Shamir-Straus's trick.
+    \item Amélioration due à Solinas. Analogue du NAF pour SM à une seule base. Définir la forme creuse jointe JSF\footnote{Joint Sparse Form.}, technique de recodage des exposants.
+    \item Interleaving. Consiste à faire un $w_i$-NAF pour chaque point de base. \'A chaque itération, on effectue un doublement puis on traite les différents points de base successivement. 
+\end{itemize}
+
+
+\subsection{L'échelle de Montgomery}
+\href{http://www.cs.ru.nl/bachelorscripties/2014/Wesley_Janssen___4037332___Curve25519_in_18_tweets.pdf}{Copier Algorithme page 8}.
+
+Initialement introduit en 87 pour les courbes de Montgomery. Ils présentent l'avantage d'être régulier donc d'être naturellement immunisé face aux SSCA et aux attaques temporels. De plus dans le cadre des courbes elliptiques, tous les calculs effectués dans cet algorithme peuvent se faire sur les abscisses. On se limite à calculer l'abscisse des points via les abscisses précédemment calculées. \'A la fin de l'algorithme, on peut retrouver l'ordonnée si besoin. Cette astuce adaptée au départ aux courbes de Montgomery, a été ensuite étendue aux équations de Weierstrass sur un corps binaire (Lopez et Dahab) puis sur un corps premier (Brier et Joye). Bien adapté à la parallélisation. cf Verneuil. Toujours une addition suivie d'un point.
+
+Parler de la variante right-to-left, plus connu sous le nom de Joye Ladder.
+
+\subsection{Réduction de Montgomery}
+Intéressant uniquement pour l'exponentiation modulaire : pour RSA par exemple mais pas pour les courbes elliptiques. \'A revoir, a priori peut aussi être intéressant. On substitue une réduction par un entier $N$ par un entier de la forme $2^k$. Ce qui ne coûte rien pour un ordinateur. Réduction modulo une puissance de $10$ en base décimale.
+
+\section{Scalaire fixé}
+$\rightarrow$ Chaîne d'addition, chaîne d'addition - soustraction, chaîne d'addition courte, recherche d'une telle chaîne à l'aide de dictionnaire, exponentiation en utilisant une chaîne. Chaîne d'addition euclidienne est une chaîne d'addition sans doublement. L'efficacité d'une chaîne d'addition pour une exponentiation dépend principalement de sa longueur (qui détermine le nombre d'opération).
+
+\begin{definition}
+Une \emph{chaîne d'addition} calculant un entier $n$ est la donnée de deux séquences $v$ et $w$ vérifiant :
+\begin{align}
+v & = (v_0, \ldots, v_s) \text{ avec } v_0 = 1 \text{ et } v_s = n\\
+v_i &= v_j + v_k \text{ pour tout } 1 \leq i \leq s\\
+w &= (w_1, \ldots, w_s), w_i = (j, k) \text{ et } 1 \leq j, k \leq s
+\end{align}
+L'entier $s$ est la \emph{longueur} de la chaîne. On parle de chaîne d'addition \emph{étoile} \footnote{Star addition chain.} si la séquence $v$ vérifie la propriété supplémentaire suivante $v_i = v_{i-1} + v_k$ pour tout $1 \leq i \leq s$.
+
+On parle de \emph{chaîne d'addition-soustraction} lorsque $v_i = v_j + v_k$ ou $v_i = v_j - v_k$.
+\end{definition}
+
+Dans un premier temps, remarquons que les algorithmes de la section précédente fournissent implicitement des chaînes d'additions. La donnée d'une chaîne d'addition d'un entier $k$ de longueur $s$ permet de calculer $[k]P$ en temps constant. L'algorithme de multiplication scalaire associé est régulier et requiert $s$ additions. Une addition par itération. Certains résultats intermédiaires requièrent d'être stockés. L'implémentation diffère suivant que la chaîne a été pré-calculée ou non. Si c'est le cas, on déroule la SM (implémentation sans boucle).
+
+On cherche une chaîne d'addition la plus courte possible. Mais c'est un problème difficile. En pratique, pour des raisons d'efficacité, on se limite à calculer des chaînes d'addition étoiles relativement courte.
+
+
+
+\section{Point de base fixé}
+Dans certains algorithmes, on doit effectuer plusieurs exponentiations avec le même point de base. C'est notamment le cas dans la procédure de signature de RSA. Une étape préalable de précalcul apporte un gain important. En effet ces précalculs même s'ils sont coûteux ne sont effectués qu'une seule fois pour toute la session. Plus le nombre d'exponentiation à calculer avec le même point de base est important et plus le coût de l'étape de précalcul est négligeable. Il arrive parfois que dans un système le point de base soit fixé, les points précalculés peuvent être directement stockés dans l'appareil. Le coût de l'étape de précalcul est alors négligeable. 
+
+Noter qu'il est nécessaire de posséder suffisamment de place afin de stocker ces précalculs. Nous pouvons aussi remarquer que le sliding window possède lui aussi une étape de précalcul. Mais à la différence des algorithmes présentés dans cette section, le sliding window est un algorithme générique. C'est à dire qu'il n'y a pas besoin que le point de base soit fixé pour être intéressant. La différence est que le sliding window précalcul de petit multiple qui sont donc rapide à calculer. Tandis que les algorithmes présentés ci-dessous précalcul n'importe quel multiple (pas de contraintes sur le poids de Hamming du scalaire). Autrement dit le coût de l'étape de précalcul dans les algorithmes de cette section est nettement plus grand que l'étape de précalcul du sliding window.
+
+\subsection{Méthode de Yao}
+
+\subsection{Méthode d'Euclide}
+
+\subsection{Méthode du peigne à point fixe, de Lim-Lee}
+Réécrire le développement de l'entier $n$ sous la forme d'une matrice $h \times a$. Dans la matrice le développement de $n$ se lit de haut en bas et de droite à gauche. Chaque colonne de la matrice correspond à la sélection de $h$ bits de $n$. Par exemple la colonne $0$ \footnote{Celle toute à droite.} correspond aux bits de $n$ congrue à $0$ modulo a. 
+
+L'idée est de précalculé les points correspondant aux colonnes.
+
+
+La méthode de Lim-Lee n'est pas protégé face aux SSCA et aux attaques temporels. LSB-set \cite{feng2005efficient}, MSB-set \cite{feng2006signed}, SAB-set \cite{hedabou2005countermeasures}.
+
+
+
+\todo{Faire un tableau résumant l'algorithme de multiplication scalaire conseillé en fonction des 4 critères et des propriétés du groupe (inverse facile, modulo).}
+
+
+Une multiplication scalaire se compose de 4 parties. Les deux dernières parties dépendent de données secrètes, il est donc important qu'elles ne laissent pas fuir d'information par canal auxiliaires.
+\begin{enumerate}
+    \item Input and point validation
+    \item Precomputation
+    \item Recoding
+    \item Evaluation
+\end{enumerate}

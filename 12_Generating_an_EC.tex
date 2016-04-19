@@ -1,0 +1,12 @@
+\chapter{Génération d'une courbe elliptique}
+Méthode CM \footnote{Multiplication Complexe}, Atkin-Moray sur \GF{p} et Lay-Zimmer sur \GF{2^d}. L'idée est de générer une courbe en spécifiant a priori l'ordre de la courbe. On vise à déterminer une courbe avec un nombre de points donné.
+
+Considérons une courbe elliptique $E$ définie sur l'ensemble des rationnels. En la considérant sur \C, cette courbe possède une multiplication complexe par un ordre dans $\Q(\sqrt{D})$, où $D$ est un entier négatif non carré. Supposons que $p > 3$, un nombre premier ne divisant pas le discriminant de $E$. On peut ainsi considérer $E$ sur \GF{p} en réduisant ses coefficients modulo $p$. Si en plus l'entier est la norme d'un entier algébrique de $\Q(\sqrt{D})$, alors il s'avère que l'on peut facilement calculer le cardinal des points de la courbe $E(\GF{p})$ sans même en connaître ses coefficients, la connaissance des entiers $D$ et $p$ suffit. Le calcul de l'ordre de la courbe peut se faire via l'algorithme de Cornacchia-Smith.
+
+Lié à la théorie des corps quadratiques imaginaires et des formes quadratiques binaires.
+
+La méthode CM est plus rapide que les algorithmes de comptage de points sur une courbe elliptique sur un corps premier ou une extension optimale choisie aléatoirement. Pour les corps binaires, l'utilisation d'algorithme de comptage de points surpasse la méthode CM.
+
+Les utilisateurs ne sont pas confiant quant à l'utilisation de courbes elliptiques en cryptographie générée par la méthode CM. Il est peu probable qu'une courbe sélectionnée au hasard possède un nombre de classe petit. En ce sens, les courbes générées par la méthode CM sont \og spéciales \fg{}. La notion de confiance en cryptographie est fondamentale. On préfère utiliser des courbes plus génériques, qui ne possèdent pas de spécificité. La particularité des courbes CM pourrait être utilisé pour monter une attaque. 
+
+Noter que les courbes CM sont utilisées pour les couplages.

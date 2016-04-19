@@ -1,0 +1,448 @@
+% This package warns you for incorrect usage of \Latex
+% The warnings show up in the .log file
+\RequirePackage[12tabu, orthodox]{nag}
+\documentclass[a4paper]{report}
+
+%%%%%%%%%%%%%%%%%%
+%    PACKAGES
+%%%%%%%%%%%%%%%%%%
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+
+\usepackage{geometry}        % Gestion des marges
+% Options : twoside, landscape, portrait; textwidth, textheight, text; [t|b|r|l]margin
+\usepackage{graphicx, xcolor, titling, titlesec, titletoc, makeidx, fancyhdr, enumitem, array, diagbox, subfigure, algorithm, algorithmic, placeins, comment}
+\usepackage{amsmath, amssymb, mathrsfs, amsthm, mathtools, mathdots}
+\usepackage{hyperref}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%\input  : se contente d'un copier / coller
+%\include : ajout d'un saut de page
+%\includeonly{fichier1 ...}
+%%%%%%%%%%%%%%%%%%%%
+% FILE : COMMANDES
+\input{commandes}
+
+%%%%%%%%%%%%%%%%%%%%
+% FILE : NOMENCLATURE
+%\input{nomenclature}
+
+
+% Infos page de titre
+\title{Notes sur les Courbes Elliptiques}
+\author{Maxime \textsc{Lebreton}} %\and si plusieurs auteurs
+\date{\today}
+
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+%\begin{abstract}
+%\end{abstract}
+%\newpage
+%\printnomenclature
+%\newpage
+%\listoftables
+%\listoffigures
+
+% MEMO Clavier MAC
+% antislash : Alt + Maj + / 
+% accolade : Alt + (
+% crochet Alt + Maj + (
+% underscore : Maj + -
+% barre vertical : Alt + Maj + l
+
+
+\addtolength{\parskip}{1em}
+
+
+\input{00_TODO.tex}
+
+\input{01_Intro_EC.tex}
+
+\input{02_ECC.tex}
+
+\input{03_DLP.tex}
+
+\input{04_Protocol_crypto.tex}
+
+\input{05_ECSM.tex}
+
+\input{06_EC_Arithmetic.tex}
+
+\input{07_Finite_Field_Arithmetic.tex}
+
+\input{08_Attacks_on_ECDLP.tex}
+
+\input{09_Physical_Attacks_on_ECC.tex}
+
+\input{10_Security_Requirements.tex}
+
+\input{11_Point_Counting_on_EC.tex}
+
+\input{12_Generating_an_EC.tex}
+
+
+\chapter{ECC security}
+\section{Ladders}
+Priviligier des algorithmes de multiplication scalaire \emph{régulier}. Le nombre d'opération effectué à chaque itération de la multiplication scalaire est indépendant du scalaire. Peu importe le bit du scalaire considéré, on réalisé autant d'addition que de doublement à chaque pas de l'algorithme. On peut notamment citer : ajout d'opération factices \footnote{dummy operation}, double-and-add always, Montgomery Ladder. Le premier est à é
+
+Priviligier l'utilisation de l'algorithme de l'échelle de Montgomery afin d'effectuer les multiplications scalaires. 
+
+Avantages : simple, rapide (ECSM sans coordonnées $y$ et particulièrement efficace pour les courbes de Montgomery), temps constant.
+
+\section{Twist}
+Les attaques suivantes supposent que l'adversaire est en mesure de choisir le point de base de la multiplication scalaire.
+
+\subsection{Attaques de petits sous-groupe}
+Attaque de Lim-Lee 1997 \cite{lim1997}. Au lieu d'envoyer un point de la courbe appartenant au sous-groupe principal. On transmet un point de la courbe d'ordre un diviseur du cofacteur. L'ordre de notre point étant choisit petit, on peut ainsi calculer son logarithme discret et par conséquent retrouver le secret modulo l'ordre de notre point. Nous avons ainsi divisé par l'ordre du point le nombre de valeurs possibles restantes pour $k$. 
+En pratique cette attaque peut-être ignorée puisque l'attaquant ne récupère que peu d'information sur le secret.
+
+\subparagraph{Contremesures}
+\begin{itemize}[label=$\rightarrow$]
+    \item Fixer le cofacteur égal à un.
+    \item Rejeter les points tel que $hQ = \infini{}$.
+\end{itemize}
+
+
+
+\subsection{Attaques via courbes invalides}
+Attaque présentée en 2000 par Bielh-Meyer-Müller \cite{biehl2000}. L'attaque est basée sur l'observation que les opérations sur les points d'une courbe elliptique (addition et doublement) ne dépendent pas du coefficient $b = a_6$ de la courbe. En d'autres termes, les mêmes formules s'appliquent à l'ensemble des courbes partageant le même coefficient $a = a_2$. 
+
+L'idée consiste à envoyer à Bob un point $Q$ de petit ordre mais appartenant à une autre courbe. En particulier à une courbe de la forme $y^2 = x^3 + ax + c$. D'une part Bob ne se rendra compte de rien s'il ne fait aucune vérification sur le point qu'il reçoit. D'autre part il calculera bien le point $[k]Q$ (et c'est bien ce que recherche Eve).
+
+Ainsi Eve, en récupérant le point $kQ$, peut retrouver un peu d'information sur le secret $k$ : $k \pmod w(Q)$. Il lui suffit de réitérer ce procédé pour un point d'ordre 2, 3, 5 \ldots Dés qu'elle est en possession de suffisamment d'information, elle utilise le CRT pour recouvrer $k$.
+
+Eve doit être capable de construire des courbes dont l'ordre est divisible par de petits entiers et générer des points de petit ordre.
+
+Au final, dés qu'un des coefficients régissant l'équation de la courbe n'intervient pas dans la loi d'addition on peut tenter cette astuce.
+
+\subparagraph{Contremesures}
+\begin{itemize}[label=$\rightarrow$]
+    \item Vérifier que le point reçu appartient effectivement à la courbe.
+    \item Compression des points. En décompressant le point $Q$, Bob s'apercevra automatiquement si le point appartient à la courbe ou non. (Demande du temps et un effort supplémentaire d'implémentation).
+\end{itemize}
+
+
+\subsection{Attaques via courbes invalides contre des ladders}
+Cette attaque repose sur le même principe que précédemment. Elle vise les algorithmes d'échelle à une seule coordonnées \footnote{Formules de Montgomery, ou bien les formules de Brier et Joye pour les équations de Weierstrass sur un corps premier.}. 
+
+Commençons par rappeler que l'équation du twist de la courbe elliptique $E : y^2 = x^3 + ax + b$ est donnée par $\tilde{E} : vy^2 = x^3 + ax + b$ où $v$ est un non carré. L'observation clé est que pour ce type de multiplication scalaire, les formules sont les mêmes pour la courbe et son twist. Le coefficient $v$ n'intervient pas. L'attaque consiste donc à transmettre un point du twist qui soit de petit ordre.
+
+\subparagraph{Contremesure}
+\begin{itemize}[label=$\rightarrow$]
+    \item Vérifier que l'abscisse $x$ correspond bien à un point de la courbe originale et non de son twist.
+    \item Twist secure : sélectionner une courbe telle que son twist vérifie les mêmes critères de sécurités que la courbe originalle. Dans ce cas, il n'est plus nécessaire de faire la vérification précédente.
+\end{itemize}
+
+Fouque et al. a montré que la première contremesure n'était pas suffisante lorsqu'un attaquant est en mesure de monter une attaque par faute. Par conséquent il est maintenant admis que la notion de twist secure est une propriété attendue d'une courbe elliptique. Il faut bien voir que cette propriété sert uniquement si on implémente un ladder.
+
+Supposons que la vérification se fait après la SM. L'attaquant commence par transmettre un point du twist et de petit ordre. Ensuite juste avant la vérification, il introduit une faute en espérant que le point obtenu passe avec succès le test. Une fois sur deux cela sera le cas. Il obtient le point $[k]P \oplus \epsilon$. Il est raisonnable de supposer que la faute n'a modifié qu'un registre de 8 ou 16 bits. En comparant deux points de cette forme, il peut retrouver $\epsilon$.
+
+
+
+\href{http://crypto.stackexchange.com/questions/19878/what-are-these-twist-attacks-with-cost-258-4-on-nist-p-224-curve-and-when}{Lien 1}
+\href{http://crypto.stackexchange.com/questions/19877/understanding-twist-security-with-respect-to-short-weierstrass-curves}{Lien 2}
+
+\section{Completeness}
+La somme des points d'une courbe elliptique présente des cas particuliers. Il faut vérifier si les points sont identiques, si ils ont la même abscisse \ldots Cette particularité s'avère être un défaut majeur dans la prévention des attaques par canaux auxiliaires. La fuite (la consommation électrique moyenne, le pattern) caractérisant une addition est différente (avec une bonne probabilité) de celle d'un doublement. 
+
+Afin que l'attaquant ne soit plus en mesure de différencier une addition d'un doublement, l'idée consiste à chercher des formules universelles : qui soit applicable à n'importe quelle entrée. On qualifie \emph{d'unifié}, des formules applicables à la fois à l'addition et au doublement. Lorsqu'en plus ces dernières ne présentent plus aucun point particulier, on peut les appliquer à n'importe quel couples de point. On parle alors de formules \emph{complète}. La notion de complétude est donc plus forte (condition suffisante pour être unifié). 
+
+
+
+\section{Indistinguishability}
+
+
+
+\chapter{Non trié}
+\section{Forme de Montgomery 1987}
+\begin{definition}
+Une courbe elliptique $\mathcal{E} / \GF{p}$ sous forme de Montgomery est donnée sous la forme :
+\begin{equation}
+By^2 = x^3 + Ax^2 + x =f(x)
+\end{equation}
+avec $B(A^2 - 4) \neq 0$
+\end{definition}
+\begin{itemize}[label=$\bullet$]
+    \item Symétrique. $-(x, y) = (x, -y)$
+    \item Point d'ordre $2$. $2P = \infini{} \Leftrightarrow (x, y) \text{ tel que } y = 0 \text{ et } x \text{ racines de } x(x^2 + Ax + 1)$. En particulier $(0, 0)$ est d'ordre $2$ donc $\# E(\GF{p})$ est pair. Le nombre de points d'ordre $2$ dépend si $A^2-4$ est un résidu quadratique ou non. Ainsi les courbes sous forme de Montgomery sont une sous partie des courbes sous forme de Weierstrass. 
+    \item $4 \mid \# E(\GF{p})$. Le cofacteur d'une courbe sous forme de Montgomery vaut au moins $4$.
+    \item Arithmétique des courbes sous forme de Montgomery est très efficace. 
+    \begin{itemize}[label=--]
+        \item La multiplication scalaire s'effectue via le Montgomery Ladder \todo{citer}. Utiliser tel quel cet algorithme est intéressant car c'est un algorithme régulier, ce qui le rend immunisé face aux attaques temporelles. \'{A} chaque itération, qu'importe la valeur du bit considéré une addition et un doublement est effectué. Le nombre d'additions et de doublements dépend de la longueur de la chaîne de bits. Mais il ne dépend pas du bit pattern ni de la valeur des bits. De plus le nombre d'opération dans le corps fini est identique.
+        \item D'autre part, il est possible de se limiter à la première coordonnée. Il devient ainsi plus efficace que les algorithmes d'exponentiation traditionnels. Pour cela, il faut montrer que connaissant $x(nP)$ on peut retrouver $y(nP)$. Et que l'on peut calculer $x(2P)$ et $x(P+Q)$ connaissant $x(P), x(Q), x(P-Q), y(P-Q)$.
+        \item Le doublement implique une multiplication par $\frac{A \pm 2}{4}$. On choisit le coefficient $A$ tel que cet entier soit petit.
+    \end{itemize}
+    \item Lopez et Dahab ont généralisé la technique en $99$ aux courbes binaires et Brier et Joye en 2002 l'ont étendu aux formes de Weierstrass sur un corps premier mais le nombre de multiplications pour l'addition et le doublement est moins intéressant pour les courbes de Montgomery. 
+    \item Transformation sous forme de Weierstass et vice-versa. 
+    \item Avantages : immunisé naturellement contre les attaques temporelles et l'arithmétique est très efficace.
+    \item Curve25519 : créer par Bernstein pour un ECDH.
+    \item Les courbes de Montgomery sont redoutables pour les multiplications scalaires simples mais elles sont moins adaptées pour les multiplications scalaires multiples.
+    \item Elles sont birationnnelement équivalentes aux twist des courbes d'Edwards.
+\end{itemize}
+
+Quelques papiers notables :
+\begin{itemize}[label=--]
+    \item \href{http://sage.math.washington.edu/edu/124/misc/montgomery.pdf}{Papier de Montgomery}
+    \item \href{http://saluc.engr.uconn.edu/refs/sidechannel/okeya00elliptic.pdf}{Elliptic curves with their Montgomery form}. Apporte des conditions nécessaires et suffisantes pour l'existence de point d'ordre $4$, $8$.
+    \item \href{http://cr.yp.to/ecdh/diffchain-20060219.pdf}{Chaîne d'addition différentielle de Bernstein 2006}.
+    \item \href{https://eprint.iacr.org/2006/220.pdf}{Chaîne d'addition multidimensionel pour les courbes de Montgomery 2006}.
+\end{itemize}
+
+\section{Forme d'Edwards}
+\subsection{Sur un corps NON binaire}
+\begin{itemize}[label=--]
+    \item Le théorème suivant établit que toutes les courbes elliptiques définies sur un corps non binaire sont birationnellement équivalentes à une forme d'Edwards sur une extension du corps de base. En effet toutes courbes elliptiques possèdent un point d'ordre $4$ dans une extension.
+    \begin{theoreme}
+    Soit \field{} un corps tel que $2 \neq 0$. Soit $E$ une courbe elliptique définie sur \field{} possédant un point \field{}-rationnel d'ordre $4$. Alors :
+    \begin{enumerate}
+        \item Le twist quadratique de $E$ est birationnellement équivalent sur \field{} à une forme d'Edwards.
+        \item Si en plus $E(\field{})$ possède un unique point d'ordre $2$ alors le coefficient $d$ est un non carré. Ce qui implique que les formules d'additions sont complètes.
+        \item Si en plus \field{} est fini, alors $E$ est birationnellement équivalent sur \field{} à une forme d'Edwards. 
+    \end{enumerate}
+    \end{theoreme}
+    \item Soit $E : x^2 + y^2 = 1 + dx^2y^2$, une courbe d'Edwards sur un corps \field{} non binaire tel que $d \neq 0, 1$. On définit la loi d'addition comme :
+    $$ (x_1, y_1), (x_2, y_2) \mapsto \left ( \frac{x_1y_2 + x_2y_1}{1 + dx_1x_2y_1y_2}, \frac{y_1y_2 - x_1x_2}{1 - dx_1x_2y_1y_2} \right )$$
+    Cette opération définit bien une loi de composition interne. L'élément neutre est le point affine  $(0, 1)$. L'opposé d'un point $P$ est donné par $-P = (-x_1, y_1)$. De plus $(0, -c)$ est d'ordre $2$ et $(c, 0)$, $(-c, 0)$ sont d'ordres $4$.
+    \item Cette opération de groupe est \emph{fortement unifiée} : elle est aussi définie pour le doublement de points. Il existe cependant quelques cas où l'addition n'est pas définie : le dénominateur s'annule. On peut montrer que cette situation n'arrive jamais lorsque $d$ est un non carré. Dans ce cas on dit que la loi est \emph{complète} : l'opération est définie pour toutes les paires de points de la courbe.
+    \item DBL : 3M + 4S = 6,2M. ADD : 10M + 1S. Le gain est important par rapport à une forme de Weierstrass : 1S pour le DBL et 1M + 4S pour l'ADD. Les formes d'Edwards présentent un doublement compétitif et l'une des additions les plus efficaces.
+    \item Au final quelque soit la configuration, multiplication scalaire simple ou multiple avec ou sans contremesure, la forme d'Edwards sur un corps non binaires possèdent l'arithmétique la plus efficace. Cependant elle reste concurrencée par les courbes de Montgomery pour la SM simple et par les courbes à multiplication complexe (courbes de Koblitz et courbes GLV). On peut aussi rajouter les quartiques de Jacobi.
+    \item Introduction du \emph{système de coordonnée inversé}. Il permet de gagner une multiplication sur l'addition sans réduire l'efficacité du doublement et du triplement. Néanmoins les formules ne sont plus complètes mais uniquement fortement unifiées. Les points spéciaux restent limités : points d'ordres $2$, $4$ et le point à l'infini.
+\end{itemize}
+
+\noindent Listes de papiers notables :
+\begin{itemize}[label=--]
+    \item \href{http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.139.567}{A normal form for elliptic curve. Edwards 2007}.
+    \item \href{http://cr.yp.to/newelliptic/newelliptic-20070906.pdf}{Faster addition and doubling on EC 2007.}
+    \item \href{http://eprint.iacr.org/2007/410.pdf}{Inverted Edwards coordinates 2007}.
+    \item \href{http://eprint.iacr.org/2008/013.pdf}{Twisted Edwards Curves}.
+    \item \href{http://eprint.iacr.org/2008/522.pdf}{Twisted Edwards Curves Revisited}.
+\end{itemize}
+
+\subsection{Sur un corps binaire}
+\begin{definition}
+Soit \field{} un corps tel que $char(\field{}) = 2$. Soient $d_1, d_2 \in \field{}$ tel que $d_1 \neq 0$ et $d_2^2 \neq d_1^2 + d_1$. L'équation affine d'une coubre d'Edwards binaire est donné par :
+$$E_{B, d_1, d_2} : d_1(x+y) + d_2(x^2 + y^2) = xy + xy(x + y) + x^2y^2$$
+L'équation est symétrique en $x$ et en $y$ donc si $(x_1, y_1) \in E_{B, d_1, d_2}$ alors $(y_1, x_1)$ est aussi un point de la courbe. $e = (0, 0)$, $T_2 = (1, 1)$ et $(x_1, y_1) + (1, 1) = (x_1 + 1, y_1 +1)$.
+\end{definition}
+
+\begin{itemize}[label=--]
+    \item La loi d'addition est fortement unifiée : la formule peut aussi être utilisée pour le doublement, mais il existe quelques cas exceptionnel. Lorsque le paramètre $d_1 \neq 0$ et qu'il n'existe aucun élément $t \in \field{}$ satisfaisant $t^2 + t + d_2 = 0$ ou de manière équivalente lorsque $k = \field{2^n}$ $d_2$ vérifie $Tr(d_2) = 1$, alors la loi d'addition est complète (les fonctions rationnelles définissant l'addition n'ont aucun pôle sur $E_{B, d_1, d_2}$).
+    \item Si $n \geq 3$, alors toutes les courbes elliptiques sur \GF{2^n} sont birationnellement équivalentes à une courbe d'Edwards binaire complète.
+\end{itemize}
+
+
+
+\section{Courbes elliptiques définies sur un corps binaire}
+Nous considérons ici les courbes elliptiques définies sur \GF{2^d}. 
+\begin{equation}
+\left (\frac{\delta f}{\delta x}(P); \frac{\delta f}{\delta y}(P) \right) = (a_1 y + x^2 + a_4; a_1 x + a_3)
+\end{equation}
+On peut transformer l'équation de Weierstrass en fonction de la valeur de $a_1$.
+
+\paragraph{Courbe supersingulière}
+Si $a_1 = 0$, alors $a_3 \neq 0$. Sinon elle n'est pas lisse. 
+\begin{equation}
+E : y^2 + a_3y = x^3 + a_4x + a_6
+\end{equation}
+Rappelons que $-P = (x, - a_1x - a_3 - y)$. Ainsi $2P = \infini{} \Leftrightarrow a_3 = 0$. On a donc $E[2] = \{\infini{}\}$. C'est une courbe supersingulière. Utilisé pour les couplages.
+
+\paragraph{Courbe ordinaire}
+Si $a_1 \neq 0$, on peut transformer l'équation de Weierstrass en :
+\begin{equation}
+E : y^2 + xy = x^3 + a_2x^2 + a_6
+\end{equation}
+Cette courbe est lisse (ie : elle définit une courbe elliptique) si et seulement si $a_6 \neq 0$
+\begin{itemize}[label=$\bullet$]
+    \item $E[2] = \{ \infini{}, (0, \sqrt{a_6})\} \subseteq E(\GF{2^d}) \implies E(\GF{2^d})$ est d'ordre pair. Par définition une courbe ordinaire possède un point d'ordre $p$, la question est de savoir à quelle extension appartient-il ?
+    \item En pratique $d$ est impair.
+    \item Lorsque $d$ est impair, il est toujours possible de choisir $a_2 \in \GF{2}$. S'il existe $\lambda \in \GF{2^d}$ tel que $\lambda^2 + \lambda + c = 0$ avec $c \in \GF{2^d}$. Alors le changement de variable suivant
+    \begin{equation*}
+    x \mapsto x, y \mapsto y + \lambda x
+    \end{equation*}
+    conduit à l'équation de Weierstrass 
+    \begin{equation}
+    y^2 + xy = x^3 + (a_2 + c)x^2 + a_6
+    \label{EC_binaire}
+    \end{equation}
+    On peut montrer que $\lambda$ existe si et seulement si $Tr_{\GF{2^d}/\GF{2}}(c) = 0$. Ainsi on cherche $c$ de trace nulle et tel que $a_2 + c \in \GF{2}$. Il suffit de prendre $c$ égal à $a_2$ ou $a_2 + 1$. Lorsque $d$ est impair, l'un de ces éléments est de trace nulle ($Tr_{\GF{2^d}/\GF{2}}(1) = d$).
+    \item Il est possible d'accélérer le doublement en coordonnée affine lorsque on peut déterminer les solutions des polynômes de degré 2. Ce qui est le cas en représentation normale.
+    \item Lorsque l'on a plusieurs doublement consécutifs à effectuer en affine. On accélère les calculs en représentant les points par leur abscisse et la pente de la tangente.
+    \item Lopez et Dahab ont généralisé l'idée de Montgomery en 99. On peut appliquer l'échelle de Montgomery uniquement en calculant les abscisses des points.
+    \item Point Halving.
+    \item Compression. Il y a au plus deux points avec la même abscisse $(x,y)$ et $(x,x+y)$. On représente un point par $x$ et un bit. L'équation \eqref{EC_binaire} a deux solutions dans \GF{2^d}. On pose $Y = y / x$. L'équation devient $Y^2 + Y + (x^3 + a_2x^2 + a_6)/x^2$. Cette dernière a une solution si et seulement la trace du terme constant est nulle. Les solutions sont alors $Y$ et $Y+1$. Le bit du poids faible de $y/x$ permet de distinguer les solutions. Problème la compression est coûteuse, nécessite une inversion.
+\end{itemize}
+
+\subsection{Point Halving}
+Technique proposé de indépendamment par Knudsen et Schroeppel en 99. Elle permet de calculer plus efficacement la multiplication scalaire en substituant les doublements par l'opération halving (moitié). Cette technique est applicable uniquement pour les courbes elliptiques binaires de cardinal divisible par $2$ mais pas par $4$ (ce qui est équivalent à $Tr(a_2) = 1$).
+
+$\# E(\GF{2^d}) = 2^k l$, où $l$ est impair. On dit que $E$ est en $2$-torsion minimal \footnote{$E$ is said to have minimal $2$-torsion.} si $k=1$. 
+
+Considérons l'endomorphisme de doublement :
+$$\fonction{[2]}{E(\GF{2^d})}{E(\GF{2^d})}{P}{[2]P}$$
+C'est un morphisme non injectif $Ker([2]) = E[2] = \{ \infini{}, T_2\}$. Chaque point possède exactement $2$ antécédents ($A$ et $A + T_2$).
+On a : $E(\GF{2^d}) = G \times E[2^k]$. On peut définir l'application réciproque du doublement sur $G$.
+$$\fonction{[\frac{1}{2}]}{G}{G}{P}{Q \hspace{1cm} [2]Q = P}$$
+$[\frac{1}{2^i}] := [\frac{1}{2}] \circ \ldots [\frac{1}{2}]$
+
+\begin{itemize}[label=$\bullet$]
+    \item $E$ sur $\GF{2^d}$ est en minimal $2$-torsion $\Leftrightarrow Tr_{\GF{2^d}/\GF{2}}(a_2) = 1$
+    \item Comment représenter un entier par son développement $\frac{1}{2}$-adic.
+    \item Comment calculer l'opération halving. Chaque point possède exactement deux antécédents par $\frac{1}{2}$. Il faut être capable de distinguer $[\frac{1}{2}]P$ de $[\frac{1}{2}]P + T_2$. Lorsque $k=1$ on peut le faire facilement en remarquant que l'on peut calculer la moitié de $[\frac{1}{2}]P$ mais pas de $[\frac{1}{2}]P + T_2$. 
+    \item Le calcul de la moitié d'un point demande de calculer efficacement les racines carrés et de résoudre des équations du second degré.
+    \end{itemize}
+    Lorsque $k=1$, l'application halving est facilement calculable et est notamment plus rapide que le doublement. On peut ainsi substituer le doublement par l'opération halving et rendre la multiplication scalaire plus efficace.
+
+
+\subsection{Courbes de Koblitz}
+Koblitz a proposé en $92$ l'utilisation en cryptographie des courbes définies sur \GF{2}. On les appelle les courbes de Koblitz ou encore les courbes anomales binaires\footnote{Les courbes de Koblitz sont anomales sur \GF{2} ou son twist est anomale toujours sur \GF{2}.}. Avec ces courbes, il est possible de substituer le doublement par le Frobenius. Mais pour que cela soit intéressant il faut vérifier plusieurs choses : que l'évaluation du Frobenius soit rapide, que le développement $\tau$-adic s'effectue rapidement et que ce développement soit court et creux (faible densité). Le premier limite le nombre d'évaluation du Frobenius tandis que le second influence le nombre d'addition.
+
+L'utilisation d'un endomorphisme est à mettre en parallèle avec les techniques de recodage du scalaire. La dernière vise à diminuer le nombre d'addition tandis que la première cherche à réduire le coût des doublements, en les substituant par un endomorphisme. 
+\begin{equation}
+E_a / \GF{2} : y^2 + xy = x^3 + a_2x^2 + 1
+\end{equation}
+
+\begin{itemize}[label=$\bullet$]
+    \item $E_1$ est anomale sur \GF{2} mais pas forcément sur \GF{2^d}. Le twist de la courbe $E_0$ est anomale sur \GF{2}.
+    \item  $\# E_{a_2}(\GF{2}) = 3 - \mu = 3 - (-1)^{1-a_2}  = \begin{cases} 2 & \text{ pour } a_2 = 1 \\ 4 & \text{ pour } a_2 = 0\end{cases}$.\\
+    Le cofacteur $h$ de $E(\GF{2^d})$ est au moins divisible par $2$. En pratique, on le choisira minimal. Soit $h = 2 $ ou $4 = 3 - (-1)^{1-a_2} = 3 - \mu = (\tau - 1)(\bar{\tau} - 1)$
+    \item Spécifier une courbe de Koblitz, revient à définir un nombre premier $d$. Si l'on considère les nombres premiers compris entre $160$ et $512$, il existe seulement $12$ courbes de Koblitz intéressantes pour la cryptographie.  
+    \item On peut facilement calculer $\# E(\GF{2^d})$ à partir de $\# E(\GF{2})$ via les suites de Lucas. On note $\tau$ et $\hat{\tau}$ les racines du polynômes caractéristiques de Weil. On a les relations suivantes : $\tau \hat{\tau} = 2$ et $\tau + \hat{\tau} = \mu$. On identifie le Frobenius au nombre complexe $\tau$. 
+    \item Les courbes de Koblitz ont été introduites car en partie leurs normes et leurs traces sont petits. L'endomorphisme de Frobenius \footnote{Dans ce contexte, on l'appelle squaring map.} vérifie l'équation : $\tau^2 + 2 = \mu \tau$ avec $\mu = (-1)^{1-a_2}$. Cet endormorphisme est quasiment gratuit à calculer. 
+    \item Cette application peut être vue comme implémentant la multiplication complexe par $\tau = \frac{\mu + \sqrt{-7}}{2}$. On a $X^2 - \mu X + 2 = (X - \tau)(X - \bar{\tau})$. D'où $\tau \bar{\tau} = 2$ et $\tau + \bar{\tau} = \mu$.
+    \item Pour calculer ECSM, on regarde l'entier $k$ comme un élément de $\Z[\tau]$. Par exemple pour $a = 1$ \footnote{On parle de la trace.}, on a $9 = \tau^5 - \tau^3 +1$. En considérant le calcul de $\tau$ comme gratuit. Une ECSM correspond ici à $3$ additions. C'est donc le poids de Hamming du développement de $k$ qui détermine le coût ie : le nombre d'addition.
+    \item $\Z[\tau]$ est un anneau euclidien par rapport à la fonction norme, $N(z) = z \bar{z}$. Toutefois la propriété d'être euclidien, n'affirme pas l'unicité du quotient et du reste mais seulement de leurs existences. L'algorithme de division usuel consiste à choisir le reste minimisant la norme du quotient. Pour le développement $\tau$-adic NAF, lorsque $n_0$ est impair, on sélectionnera le reste tel que le quotient soit divisible par $\tau$.
+    \item Développement $\tau$-adic. Soit $k \in \Z[\tau]$, on définit 
+    \begin{equation*}
+        k = \sum_{i = 0}^{l-1} k_i \tau^i
+    \end{equation*}
+    avec $k_i \in \{0, 1 \}$ pour tout $0 \leq i \leq l-1$.
+    \item Développement $\tau$-adic en forme non adjacente (NAF). Même chose sauf que $k_i \in \{0, \pm 1\}$ et vérifie la propriété de non adjacence : pour tout couples de bits consécutifs au moins un est nul. $k_i k_{i+1} = 0$, pour tout $0 \leq i \leq l-2$.
+    \begin{itemize}[label=--]
+        \item Pour chaque élément de l'anneau $\Z[\tau]$, la représentation $\tau$-adic NAF est unique.
+        \item Le nombre de coefficient non nul (qu'on appelle souvent la densité) dans le développement $\tau$-adic NAF est minimal parmi les représentations à valeurs dans $\{0, \pm1\}$. La densité est égal à $1/3$.
+    \end{itemize}
+    
+    \item Le développement \og standard \fg{} $\tau$-adic d'un scalaire aléatoire est de longueur $2\log{n}$ et de densité égale à $1/3$. Ce phénomène d'expansion est fâcheux, le coût d'une ECSM passe donc en moyenne de $2\log{n}$ Frobenius et $2/3\log{n}$ Add à $\log{n}$ Dbl et $\log{n}/3$ Add. Le gain ne s'avère donc pas aussi grand qu'espéré. 
+    
+    \item Pour un même niveau de sécurité, à cause des frobenius, il faut ajouter quelques bits.
+    
+    \item Pour un niveau de sécurité qui nous intéresse, soit entre $80$ et $350$, il existe seulement $14$ courbes de Koblitz vérifiant les critères de sécurité attendus (avec en particulier un cofacteur minimal). Allez lire le post \href{http://crypto.stackexchange.com/questions/10263/should-we-trust-the-nist-recommended-ecc-parameters}{Should trust the NIST ?}.
+\end{itemize}
+
+
+\section{Courbes DIK}
+DIK 
+
+% Pour compiler :
+% :!pdflatex main.tex; makeindex main.nlo -s nomencl.ist -o main.nls; pdflatex main.tex;
+
+
+\section{Kangaroo in SCA}
+\begin{itemize}[label=--]
+    \item Présentation d'une nouvelle technique d'énumération de clé. Appliqué à la cryptographie asymétrique et plus précisément à courbes elliptiques. Utilise des informations partielles issues d'une attaque template de la multiplication scalaire lors d'un échange de clé de DH. Les techniques d'énumération de clé existant ne sont pas applicables dans ce contexte car ici les bits de clé ne sont pas indépendant. 
+    \item L'attaque se déroule en deux phases :
+    \begin{description}
+        \item[Phase d'élimination ou de sélection.] Une attaque template sur la multiplication scalaire lors d'un DH est réalisée. Les résultats de cette attaque correspondent à la donnée des probabilités à posteriori : probabilité 
+    \end{description}Dans un premier une phase d'élimination ou de sélection. Via une attaque template, on récupère les probabilités à posteriori 
+\end{itemize}
+
+\begin{comment}
+\section{A faire}
+\begin{itemize}
+    \item Degré de plongement d'une courbe elliptique.
+\end{itemize}
+
+\begin{definition}
+    Soit $E(\GF{q})$ une courbe elliptique et $r$ un diviseur premier de $\# E(\GF{q})$. Le \emph{degré de plongement} de $E$ relativement à $r$ est le plus petit entier $k$ tel que $r|q^k - 1$
+\end{definition}
+\end{comment}
+
+\section{Résumé : exigences de sécurité}
+\subsection{Sécurité DLP}
+\begin{itemize}[label=$\bullet$]
+    \item Attaques génériques sur le logarithme discret. 
+    \begin{itemize}[label=$\rightarrow$]
+        \item Algorithme de Silver-Pholig-Hellman : la complexité du DLP dépend du plus grand nombre premier divisant l'ordre du de $g$. Si cet entier lisse (composé de petits facteurs premier) alors le DLP est facile. Ainsi l'ordre de $g$ doit contenir un grand nombre premier pour éviter cet attaque. De plus si l'ordre de $g$ contient de petit facteur, il est possible de retrouver de l'information partielle sur le log discret. 
+        \item La méthode Rho de Pollard casse ECDLP en utilisant en moyenne $\sqrt{\pi l / 4} = 0.886 \sqrt{l}$ additions. Ainsi si on souhaite atteindre un niveau de sécurité de $n$ bits, il faut que $l$ soit de taille $2n$. Safecurves exige $100$ bits de sécurité. C'est un algorithme probabiliste il peut donc terminer plus tôt (ou plus tard), en particulier sa probabilité de succès après $m$ additions est de $m^2 / l$. De plus casser plusieurs DLP en même temps n'est pas équivalent à les casser individuellment. Il y a un effet racine carrée.
+    \end{itemize}
+    \item Transfert du ECDLP
+    \begin{itemize}[label=$\rightarrow$]
+        \item Attaque du à Smart qui permet de transférer le problème du logarithme discret dans le groupe additif d'un corps fini. Il faut vérifier que la courbe n'est pas anomale : $\# E(\GF{p}) \neq p$.
+        \item S'assurer que le degré de plongement $k$ de $l$ soit petit. Les standards SECG et ANSI X9.62 exige que $k$ soit supérieur à 20. IEEE P1363 demande que $k$ soit supérieur à 30. Enfin Brainpool et Safecurves préconise que $k$ soit supérieur à $(l-1)/100$. Rappelons que $k$ par rapport à $l$ est défini comme étant le plus entier naturel tel quel $l | q^k - 1$. Cette exigence permet de se prémunir contre l'attaque MOV et l'attaque Frey-Rück.
+    \end{itemize}
+    \item Discriminant de la multiplication complexe
+\end{itemize}
+
+\subsection{Sécurité SCA}
+\begin{itemize}[label=$\bullet$]
+    \item 
+\end{itemize}
+
+\subsection{Efficacité}
+\begin{itemize}[label=$\bullet$]
+    \item Choix d'une courbe tel (ou via isomorphisme) $a_2 = -3$
+    \item Forme spéciale du modulo $p$. L'entier $p$ est un nombre de Crandall ie : un polynôme ternaire évalué en une puissance de 2 ou un nombre pseudo-Mersenne. Recommandé par le NIST et SECG. Tandis que le standard Brainpool exige que l'entier $p$ ne doit posséder aucune forme spécifique.
+    \item Choisir $p$ tel que $p \equiv 3 \pmod 4$. On transmet $(x, LSB(y))$, puis on retrouve $y$ via $(x^3 +ax + b)^(\frac{p+1}{4}) = y y^{\frac{p-1}{2}} = \pm y$.
+    \item 
+\end{itemize}
+
+\subsection{Compression}
+Les protocoles cryptographiques nécessitent souvent l'envoie d'un point d'une courbe elliptique à travers un canal. Pour un corps premier de $200$ bits (soit $25$ octets), un point est représenté par $50$ octets. Si la bande passante est un critère important, il est possible de la diminuer en utilisant la technique de \emph{compression d'un point}. Si $q$ est codé sur $n$ bits, alors il est possible de représenter un point d'une courbe par $n+1$ bits au lieu de $2n$ bits. On distingue le cas d'un corps fini binaire ou non. Soit $P = (x, y)$ un point de la courbe $E$.
+\begin{itemize}
+    \item Corps fini non binaire. On a $\GF{p^d} = \GF{p}(\theta)$, où $\theta$ est un élément primitif. $y = \sum_{i = 0}^{d-1} y_i \theta^i$. On peut représenter le point $P$ par $(x, LSB(y_0))$. On retrouve $y^2$ avec la connaissance de $x$ et on obtient $\pm y$. Il est possible de distinguer ces deux valeurs\footnote{Qui correspondent à un point et à son opposé.} en remarquant que $y_0$ et $-y_0 = -y_0 + p$ sont de parités différentes. La décompression nécessite deux multiplications et le calcul d'une racine carrée (via algorithme de Tonelli-Shanks).  Si $p \equiv 3 \pmod 4$, ce qui est préconisé par le nouveau standard de Brainpool, il est alors possible de décompresser le point sans calculer une racine carrée via l'égalité : $(y^2)^{(p+1)/4} = y y^{(p-1)/2}$.
+    \item Corps binaire. Encore la même question : connaissant l'abscisse d'un point de la courbe, quelles informations avons-nous besoin afin de récupérer son ordonnée ? En divisant par $x_1^2$, et en posant $z = y /x_1$, on obtient l'équation $z^2 + z +(x^3 + a_2x^2 + a_6)/x^2 = 0$ qui admet une solution si et seulement si la trace du terme constant est nul. Si $z$ est une solution alors l'autre est $z + 1$ \footnote{De même si P est sur la courbe alors $-P = (x, x+y)$ aussi.}. On représente un point par $(x, LSB(y/x))$. La compression, contrairement à un corps non premier, nécessite une inversion. La décompression requiert de résoudre une équation, de distinguer la bonne solution et de multiplier par $x$ pour retrouver $y$. Il existe une technique pour représenter un point avec $n-1$ bits au lieu de $n+1$ \href{http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=FCE13676C67E9FD34EF1BDDE6D898011?doi=10.1.1.26.4672&rep=rep1&type=pdf}{[ici]}.
+    \item Courbes de Koblitz. Ce n'est pas une technique de compression à proprement parler, puisque l'on ne peut pas recouvrer le point de manière certaine. C'est une technique permettant de réduire le nombre de bits à transmettre pendant le protocole d'échange de clé de DH. Utilise les classes d'équivalence modulo le Frobenius ou de manière équivalente modulo une rotation. 
+\end{itemize}
+
+Il est d'usage durant la phase d'implémentation de coder le point à l'infini comme $(0, 0)$. Afin d'éviter toute ambiguïté, le standard Brainpool préconise que le paramètre $b$ soit un non résidu quadratique dan \GF{p}. Dans le cas contraire la représentation des points compressés de $(0, 0)$ et de $(0, X)$, où $X = LSB(b)$, serait identique.
+
+\section{Utilisation d'endomorphisme}
+Afin d'accélérer la multiplication scalaire, il peut être intéressant d'utiliser des endomorphismes facilement calculable. Une idée naturelle est de voir ce qu'il est possible de faire avec le Frobenius. Cette application étant à égal à l'identité sur les points définis dans le corps de base, elle n'a donc d'intérêt seulement pour des courbes sur corps non premiers\footnote{donc binaire}. Remarquons tout de suite que son évaluation correspond à un décalage à gauche en représentation normale et nécessite au plus trois carrés en représentation polynomiale. Son polynôme caractéristique est de la forme $X^2 - aX + q$, on peut ainsi naturellement substituer la multiplication scalaire par $q$ par une addition et deux Frobenius. 
+
+En 90, Menezes et Vanstone ont proposé d'appliquer cette idée à une courbe binaire avec une trace nulle. Cela conduisait à substituer l'opération de doublement par le Frobenius. Malheureusement cette courbe est supersingulière et l'on sait depuis 93 que cette famille de courbes est faible.
+
+En 92, Koblitz a suggéré d'utiliser les deux courbes non supersingulières sur \GF{2} restantes. On parle des courbes de Koblitz ou encore aussi appelé courbes anomales binaires. Solinas en 99 a nommé ces courbes ainsi car une des deux courbes de Koblitz est anomale sur \GF{2} tandis que pour la seconde, c'est son twist qui est anomale \GF{2}. Bien entendu, ces courbes ne sont pas anomales sur $\GF{2^d}$. Le développement $\tau$-adic d'un entier s'effectue de la même façon que le développement binaire. Au lieu de diviser par $2$, on divise par $\tau$. De même on calcul le $\tau$-NAF suivant le même principe que le 2-NAF. Si n est divisible par $\tau$\footnote{En notant $n = c_0 + \tau c_1$, ceci est équivalent à $c_0$ est pair.}, alors le bit vaut 0 et on enchaîne avec $n/\tau$. Si n n'est pas divisible par $\tau$ cette fois, alors on choisit la valeur du bit $\epsilon = \pm 1$ de tel sorte qu'il respecte la propriété de non-adjacence. C'est à dire que $(n - \epsilon)/\tau$ soit divisible par $\tau$ ou autrement dit que $n - \epsilon$ soit divisible par $\tau^2$ \footnote{Ce qui peut se vérifier facilement.}. 
+Cependant pour qu'un développement d'un entier soit intéressant il faut qu'il soit à la fois court et creux. Court afin de diminuer le nombre d'évaluation de l'endomorphisme et creux \footnote{Assurer par la propriété de non adjacence.} pour diminuer le nombre d'addition. Le développement présenté plus haut est de longueur de $2\log{n}$ et de densité $1/3$. On passe donc de $\log{n}$ DBL et $\log{n}/3$ ADD à $2\log{n}$ Frob et $\log{n}2/3$ ADD. Le gain n'est pas aussi grand qu'espérer. Mais il est possible d'éviter ce phénomène d'expansion. 
+
+\section{CoZADD}
+En 2007 Méloni a proposé une formule d'addition de points partageant la même coordonnée en $Z$ en coordonnées Jacobienne. Puisqu'elle demande des conditions particulières sur les opérandes, il est logique qu'elle soit plus efficace que tout autres formules d'addition. Ce qui l'est moins, c'est qu'elle surpasse aussi les formules de doublement proposées jusqu'ici.
+
+Muni de cette nouvelle addition, on aimerait bien pouvoir l'employer dans une multiplication scalaire. L'observation clé est que son addition fournit implicitement un représentant d'une des opérandes partageant la même coordonnée en $Z$ que le résultat de l'addition. Via une chaîne d'addition adaptée\footnote{Appelée chaîne d'addition euclidienne.}, il devient maintenant envisageable de calculer une multiplication scalaire avec ces formules. De plus on peut se limiter aux coordonnées $(X_3, Y_3)$ puisque $Z$ n'intervient pas. Comme pour l'échelle de Montgomery on retrouve $Z$ et donc $Z_3$ à la fin.
+
+Les chaînes d'addition sont de la forme $v = (1, 2, 3, v_4, \ldots, v_s)$. Pour être utilisable avec les formules de Méloni, il faut que les opérandes des additions induient pour la chaîne d'addition partagent la même coordonnée en $Z$. Ainsi à chaque itération, seuls deux possibilités s'offrent à nous. Par exemple prenons $(1, 2, 3, 4)$. On a $3 = 2 + 1$. Pour le suivant on a seulement le choix entre $3 + 2$ et $3 + 1$. Et ainsi de suite.
+
+Les suites de Fibonacci sont des chaînes d'addition euclidiennes optimales. Méloni a tenté d'utiliser la représentation de Zeckendorf : écrire un entier comme la somme de nombres de Fibonacci. Finalement il propose un Fibonacci-and-add efficace mais légèrement plus lent que son homologue binaire. 
+
+Combine les additions coZ avec les algorithmes de types échelles. Pour cela, ils remarquent qu'avec un surcoût de $1M + 1S$ l'addition coZ permet aussi calculer la différence. On est ainsi en possession des deux algorithmes efficaces suivants : 
+$(P_1 + P_2, \tilde{P_1} \leftarrow coZADDU(P_1, P_2)$ et $(P_1 + P_2, P_1 - P_2) \leftarrow coZADDC(P_1, P_2)$.
+L'échelle de Montgomery calcul : $R_{1-b} \leftarrow R_{1-b} + R_b$; $R_b \leftarrow 2R_b$. 
+Qui peut se réécrire sous la forme : 
+$T \leftarrow R_{b} - R_{1-b}$; $R_{1-b} \leftarrow R_{1-b} + R_b$
+$R_{1-b} \leftarrow R_{1-b} + T$
+Ce qui correspond à un coZADDU suivit d'un coZADDC.
+
+Au final on obtient une nouvelle version du Montgomery Ladder nommée $(X, Y)$-only coZ Montgomery Ladder. Légèrement plus efficace que la version x-only d'une courbe de Weierstrass, elle présente en plus l'avantage d'être naturellement immunisée face à l'attaque par faute de Fouque.
+
+
+\section{Critères sélection de nouvelles courbes}
+Différentes parties ont donné leur point de vue concernant la confiance (ou non) entourant les courbes standardisées, en fonction des propriétés qu'elles satisfont ou non, ou du procéder pour les générer. 
+
+%%%%%%%%%%%%%%%%%%%%%%%
+% BIBLIOOGRAPHY
+%%%%%%%%%%%%%%%%%%%%%%%
+% Citer un article : \cite{etiquette}
+\bibliographystyle{plain}             % plain, alpha, unsrt, abbrv
+\bibliography{notes.bib}               % affiche seulement les références cités
+%\nocite{*} ou \nocite{ref}           % fait apparaitre la ref sans l'avoir cité 
+          
+
+                 
+\end{document}

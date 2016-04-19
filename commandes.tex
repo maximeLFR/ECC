@@ -1,0 +1,60 @@
+%\newcommand\nomCommande[nbArgument][ValeurParDef]{CodeLatex}
+% #i est le nom de la ieme variable. i <= 9. Valeur par défaut
+% appel de la commande : \nomCommande{arg1}{arg2}
+% package xargs permet de s'affranchir de la limite du nombre de paramètre
+
+%%%%%%%%%%%%%%%%%%%
+% 1. Theorem
+%%%%%%%%%%%%%%%%%%%
+\newtheorem{definition}{Définition}
+\newtheorem{theoreme}{Théorème}
+\newtheorem{preuve}{Preuve}
+\newtheorem{propriete}{Propriété}
+\newtheorem{corollaire}{Corollaire}
+\newtheorem{ex}{Exemple}
+\newtheorem{remarque}{Remarques}
+% utilisation via : \begin{definition} ... \end{definition}
+%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%
+% 2. Commandes
+%%%%%%%%%%%%%%%%%%%
+% Commandes Latex pour les mathématiques
+\newcommand\grandO[1]{\ensuremath{O\mathopen{}\left(#1\right)}}
+
+\newcommand{\fonction}[5]{\begin{array}{l|ccl}
+#1: & #2 & \longrightarrow & #3 \\
+    & #4 & \longmapsto & #5 \end{array}}
+    
+\newcommand{\intervalle}[4]{\ensuremath{\mathopen{#1}#2\mathclose{}\mathpunct{};#3\mathclose{#4}}}
+\newcommand{\intervalleff}[2]{\intervalle{[}{#1}{#2}{]}}
+\newcommand{\intervalleof}[2]{\intervalle{]}{#1}{#2}{]}}
+\newcommand{\intervallefo}[2]{\intervalle{[}{#1}{#2}{[}}
+\newcommand{\intervalleoo}[2]{\intervalle{]}{#1}{#2}{[}}
+\newcommand{\intervalleentier}[2]{\intervalle\llbracket{#1}{#2}\rrbracket}
+
+\newcommand{\infini}{\ensuremath{O}}
+\newcommand{\ensnombre}[1]{\ensuremath{\mathbb{#1}}}
+\newcommand{\N}{\ensnombre{N}}
+\newcommand{\Z}{\ensnombre{Z}}
+\newcommand{\Q}{\ensnombre{Q}}
+\newcommand{\R}{\ensnombre{R}}
+\newcommand{\C}{\ensnombre{C}}
+\newcommand{\field}[1][K]{\ensnombre{#1}}
+\newcommand{\GF}[1]{\ensuremath{\ensnombre{F}_{#1}}}
+\newcommand{\Zn}[1]{\ensuremath{\Z/#1\Z}}
+%\frac{\Z}{#1\Z}}}
+\newcommand{\closure}[1][\ensnombre{K}]{\ensuremath{\overline{#1}}}
+\newcommand{\CE}[1][\closure]{\ensuremath{E(#1)}}
+
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+\newcommand{\norme}[1]{\left\lVert#1\right\rVert}
+
+\newcommand{\enstq}[2]{\left\{#1\mathrel{}\middle|\mathrel{}#2\right\}}
+
+\newcommand{\prodscal}[2]{\left\langle#1,#2\right\rangle}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newcommand{\todo}[1]{\textcolor{red}{#1}}
