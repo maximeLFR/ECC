@@ -1,6 +1,6 @@
 % This package warns you for incorrect usage of \Latex
 % The warnings show up in the .log file
-\RequirePackage[12tabu, orthodox]{nag}
+% \RequirePackage[12tabu, orthodox]{nag}
 \documentclass[a4paper]{report}
 
 %%%%%%%%%%%%%%%%%%
@@ -10,6 +10,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
 \usepackage{lmodern}
+\frenchbsetup{StandardLists=true} % Resolves conflict between babel and enumitem
 
 \usepackage{geometry}        % Gestion des marges
 % Options : twoside, landscape, portrait; textwidth, textheight, text; [t|b|r|l]margin
@@ -62,31 +63,31 @@
 \addtolength{\parskip}{1em}
 
 
-\input{00_TODO.tex}
+\input{src/00_TODO.tex}
 
-\input{01_Intro_EC.tex}
+\input{src/01_Intro_EC.tex}
 
-\input{02_ECC.tex}
+\input{src/02_ECC.tex}
 
-\input{03_DLP.tex}
+\input{src/03_DLP.tex}
 
-\input{04_Protocol_crypto.tex}
+\input{src/04_Protocol_crypto.tex}
 
-\input{05_ECSM.tex}
+\input{src/05_ECSM.tex}
 
-\input{06_EC_Arithmetic.tex}
+\input{src/06_EC_Arithmetic.tex}
 
-\input{07_Finite_Field_Arithmetic.tex}
+\input{src/07_Finite_Field_Arithmetic.tex}
 
-\input{08_Attacks_on_ECDLP.tex}
+\input{src/08_Attacks_on_ECDLP.tex}
 
-\input{09_Physical_Attacks_on_ECC.tex}
+\input{src/09_Physical_Attacks_on_ECC.tex}
 
-\input{10_Security_Requirements.tex}
+\input{src/10_Security_Requirements.tex}
 
-\input{11_Point_Counting_on_EC.tex}
+\input{src/11_Point_Counting_on_EC.tex}
 
-\input{12_Generating_an_EC.tex}
+\input{src/12_Generating_an_EC.tex}
 
 
 \chapter{ECC security}
@@ -438,6 +439,7 @@ Différentes parties ont donné leur point de vue concernant la confiance (ou no
 %%%%%%%%%%%%%%%%%%%%%%%
 % BIBLIOOGRAPHY
 %%%%%%%%%%%%%%%%%%%%%%%
+% Compile with TexMaker :  F6 + F11 + F6 + F6 [+ F7].
 % Citer un article : \cite{etiquette}
 \bibliographystyle{plain}             % plain, alpha, unsrt, abbrv
 \bibliography{notes.bib}               % affiche seulement les références cités
